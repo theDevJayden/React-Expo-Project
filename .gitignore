@@ -43,3 +43,7 @@ yarn-error.*
 # AI tool configuration
 .claude/
 claude/
+
+# Ignore local project documentation and memory logs
+DOCUMENTATION.md
+MEMORY.md
