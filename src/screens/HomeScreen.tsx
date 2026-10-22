@@ -30,7 +30,6 @@ const DEFAULT_CAP = 10000000;
 const STORAGE_KEY = 'budgetCap';
 
 const SAVINGS = INCOME - EXPENSES;
-const SAVINGS_RATE = ((SAVINGS / INCOME) * 100).toFixed(1);
 
 const RING_RADIUS = 48;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
@@ -69,9 +68,9 @@ const QUICK_ACTIONS = [
 ] as const;
 
 const ACTIVITIES = [
-  { id: 'tx-1', title: 'Payroll Deposit', meta: 'Today, 9:15 AM • Direct Deposit', amount: 6200000, type: 'income' },
-  { id: 'tx-2', title: 'Whole Foods Market', meta: 'Yesterday • Groceries', amount: 640000, type: 'expense' },
-  { id: 'tx-3', title: 'Craft Artisanal Cafe', meta: 'Oct 24 • Food & Drink', amount: 45000, type: 'expense' },
+  { id: 'tx-1', title: 'Payroll Deposit', meta: 'Today, 9:15 AM', amount: 6200000, type: 'income' },
+  { id: 'tx-2', title: 'Whole Foods Market', meta: 'Yesterday • Shopping', amount: 640000, type: 'expense' },
+  { id: 'tx-3', title: 'Craft Artisanal Cafe', meta: 'Oct 24 • Food & Beverages', amount: 45000, type: 'expense' },
 ] as const;
 
 const NAV_ITEMS = [
@@ -171,37 +170,10 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView className="flex-1" contentContainerClassName="gap-6 px-4 pb-8 pt-2">
-        {/* Welcome card */}
-        <View className="flex-row items-center justify-between gap-2 rounded-[32px] bg-surface-container-low p-4">
-          <View className="flex-1 flex-row items-center gap-2">
-            <View className="h-12 w-12 items-center justify-center rounded-full bg-secondary-container">
-              <FriendlyLogo size={36} />
-            </View>
-            <View className="flex-1">
-              <View className="flex-row flex-wrap items-center gap-1.5">
-                <Text className="font-jakarta-semibold text-[18px] leading-6 text-on-surface">Hello, Alex!</Text>
-                <View className="rounded-full bg-secondary-container px-1.5 py-0.5">
-                  <Text className="font-jakarta-bold text-[10px] text-on-secondary-container">Great shape</Text>
-                </View>
-              </View>
-              <Text className="font-sans text-[12px] leading-4 text-on-surface-variant">
-                {`You've saved ${SAVINGS_RATE}% of your income this month. Keep it up!`}
-              </Text>
-            </View>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss greeting tip"
-            className="h-8 w-8 items-center justify-center rounded-full bg-surface-container"
-          >
-            <Icon name="close" size={18} color="#404944" />
-          </Pressable>
-        </View>
-
         {/* Overview card */}
         <View className="gap-4 rounded-[32px] bg-primary-container p-6 shadow-xl">
           <Text className="font-jakarta-semibold text-[20px] leading-7 tracking-tight text-on-primary">
-            October 2025 Overview
+            Monthly Overview
           </Text>
 
           <View className="gap-2 pt-1">
@@ -241,16 +213,8 @@ export default function HomeScreen() {
                   <Text className="font-jakarta-bold text-[20px] leading-7 text-secondary">
                     {formatSignedRupiah(SAVINGS)}
                   </Text>
-                  <Text className="font-jakarta-bold text-[10px] text-on-surface-variant">(Rp12,4jt - Rp8,1jt)</Text>
                 </View>
               </View>
-            </View>
-            <View className="ml-2 items-end">
-              <View className="flex-row items-center gap-0.5 rounded-full bg-secondary-container px-2 py-0.5">
-                <Icon name="trending_up" size={13} color="#00714e" />
-                <Text className="font-jakarta-bold text-[10px] text-on-secondary-container">{`+${SAVINGS_RATE}%`}</Text>
-              </View>
-              <Text className="mt-0.5 font-jakarta-bold text-[10px] text-on-surface-variant">Savings rate</Text>
             </View>
           </View>
         </View>
