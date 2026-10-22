@@ -54,7 +54,7 @@
 * **Default Preset Categories:**
   * *Housing Bills*
   * *Medical*
-  * *Food & Beverages*
+  * *Food & Beverages*  
   * *Transport*
   * *Leisure*
   * *Shopping*
