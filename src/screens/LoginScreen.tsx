@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -84,6 +84,7 @@ export default function LoginScreen() {
 
       if (data.id) {
         setIsSuccess(true);
+        router.replace('/home');
       } else {
         setErrorMessage('Login failed');
       }
