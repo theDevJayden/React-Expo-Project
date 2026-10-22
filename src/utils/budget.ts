@@ -35,6 +35,9 @@ export function parseBudgetCap(raw: string): number | null {
   return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
+// Entry amounts follow the same rule as the budget cap.
+export const parseAmount = parseBudgetCap;
+
 // Green up to 75%, amber 76-99%, red at 100% or more (per PRD Feature 4).
 // The percentage is floored so it never shows 100% before the cap is reached.
 export function getBudgetSummary(spent: number, cap: number): BudgetSummary {

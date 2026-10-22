@@ -2,6 +2,7 @@ import { useFonts } from 'expo-font';
 import { SplashScreen, Stack } from 'expo-router';
 import { useEffect } from 'react';
 import '../../global.css';
+import { FinanceProvider } from '../context/FinanceContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -24,5 +25,9 @@ export default function RootLayout() {
 
   if (!loaded) return null;
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <FinanceProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+    </FinanceProvider>
+  );
 }

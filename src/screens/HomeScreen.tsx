@@ -11,10 +11,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import FriendlyLogo from '../components/FriendlyLogo';
 import Icon from '../components/Icon';
+import MonthlyOverviewCard from '../components/MonthlyOverviewCard';
+import TransactionRow from '../components/TransactionRow';
+import { useFinance } from '../context/FinanceContext';
+import { formatShortDay, getMonthTotals } from '../utils/entries';
 import {
   BudgetLevel,
   formatRupiah,
@@ -23,13 +28,9 @@ import {
   parseBudgetCap,
 } from '../utils/budget';
 
-// Sample data (unchanged from the design)
-const INCOME = 12450000;
-const EXPENSES = 8120000;
 const DEFAULT_CAP = 10000000;
 const STORAGE_KEY = 'budgetCap';
-
-const SAVINGS = INCOME - EXPENSES;
+const RECENT_COUNT = 3;
 
 const RING_RADIUS = 48;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
@@ -50,6 +51,7 @@ const QUICK_ACTIONS = [
     iconBg: 'bg-secondary-container',
     title: 'Expense & Income',
     subtitle: 'Transaction ledger & all records',
+    href: '/expense-income',
   },
   {
     icon: 'pie_chart',
@@ -57,6 +59,7 @@ const QUICK_ACTIONS = [
     iconBg: 'bg-surface-container-high',
     title: 'Category Spending',
     subtitle: 'Breakdown analytics & proportions',
+    href: null,
   },
   {
     icon: 'description',
@@ -64,23 +67,22 @@ const QUICK_ACTIONS = [
     iconBg: 'bg-surface-container',
     title: 'Debt Tracker',
     subtitle: 'Payoffs, amortization & loans',
+    href: null,
   },
 ] as const;
 
-const ACTIVITIES = [
-  { id: 'tx-1', title: 'Payroll Deposit', meta: 'Today, 9:15 AM', amount: 6200000, type: 'income' },
-  { id: 'tx-2', title: 'Whole Foods Market', meta: 'Yesterday • Shopping', amount: 640000, type: 'expense' },
-  { id: 'tx-3', title: 'Craft Artisanal Cafe', meta: 'Oct 24 • Food & Beverages', amount: 45000, type: 'expense' },
-] as const;
-
+// href null = current page or not built yet.
 const NAV_ITEMS = [
-  { icon: 'account_balance_wallet', label: 'Home', active: true },
-  { icon: 'monitoring', label: 'Analytics', active: false },
-  { icon: 'receipt_long', label: 'Transactions', active: false },
-  { icon: 'manage_accounts', label: 'Settings', active: false },
+  { icon: 'account_balance_wallet', label: 'Home', active: true, href: null },
+  { icon: 'monitoring', label: 'Analytics', active: false, href: null },
+  { icon: 'receipt_long', label: 'Transactions', active: false, href: '/expense-income' },
+  { icon: 'manage_accounts', label: 'Settings', active: false, href: null },
 ] as const;
 
 export default function HomeScreen() {
+  const { entries, getCategory, isLoaded } = useFinance();
+  const totals = getMonthTotals(entries);
+  const recent = entries.slice(0, RECENT_COUNT);
   const [cap, setCap] = useState(DEFAULT_CAP);
   const [modalVisible, setModalVisible] = useState(false);
   const [capInput, setCapInput] = useState('');
@@ -101,7 +103,7 @@ export default function HomeScreen() {
     };
   }, []);
 
-  const summary = getBudgetSummary(EXPENSES, cap);
+  const summary = getBudgetSummary(totals.expenses, cap);
   const levelStyle = LEVEL_STYLES[summary.level];
 
   let pillLabel = 'On Track (≤75% used)';
@@ -170,54 +172,7 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView className="flex-1" contentContainerClassName="gap-6 px-4 pb-8 pt-2">
-        {/* Overview card */}
-        <View className="gap-4 rounded-[32px] bg-primary-container p-6 shadow-xl">
-          <Text className="font-jakarta-semibold text-[20px] leading-7 tracking-tight text-on-primary">
-            Monthly Overview
-          </Text>
-
-          <View className="gap-2 pt-1">
-            <View className="flex-row items-center justify-between rounded-2xl bg-white/10 p-4">
-              <View>
-                <Text className="font-jakarta-bold text-[10px] uppercase tracking-wide text-primary-fixed-dim">Income</Text>
-                <Text className="mt-0.5 font-jakarta-bold text-[24px] leading-8 tracking-tight text-on-primary">
-                  {formatRupiah(INCOME)}
-                </Text>
-              </View>
-              <View className="h-8 w-8 items-center justify-center rounded-full bg-secondary-container/30">
-                <Icon name="arrow_upward" size={18} color="#85f8c4" />
-              </View>
-            </View>
-
-            <View className="flex-row items-center justify-between rounded-2xl bg-white/10 p-4">
-              <View>
-                <Text className="font-jakarta-bold text-[10px] uppercase tracking-wide text-primary-fixed-dim">Expenses</Text>
-                <Text className="mt-0.5 font-jakarta-bold text-[24px] leading-8 tracking-tight text-on-primary">
-                  {`-${formatRupiah(EXPENSES)}`}
-                </Text>
-              </View>
-              <View className="h-8 w-8 items-center justify-center rounded-full bg-error-container/40">
-                <Icon name="arrow_downward" size={18} color="#ffdad6" />
-              </View>
-            </View>
-          </View>
-
-          <View className="flex-row items-center justify-between rounded-2xl bg-surface-container-lowest p-4 shadow-md">
-            <View className="min-w-0 flex-1 flex-row items-center gap-2">
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-secondary-container">
-                <Icon name="savings" size={20} color="#00714e" />
-              </View>
-              <View className="min-w-0 flex-1">
-                <Text className="font-jakarta-semibold text-[10px] text-on-surface-variant">Monthly Net Savings</Text>
-                <View className="flex-row flex-wrap items-baseline gap-1.5">
-                  <Text className="font-jakarta-bold text-[20px] leading-7 text-secondary">
-                    {formatSignedRupiah(SAVINGS)}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        </View>
+        <MonthlyOverviewCard income={totals.income} expenses={totals.expenses} savings={totals.savings} />
 
         {/* Budget card */}
         <View className="gap-4 rounded-[32px] bg-surface-container-lowest p-6 shadow-sm">
@@ -267,7 +222,7 @@ export default function HomeScreen() {
                   {`${summary.percent}%`}
                 </Text>
                 <Text className="mt-0.5 font-jakarta-semibold text-[10px] text-on-surface-variant">Budget Used</Text>
-                <Text className="mt-0.5 font-jakarta-semibold text-[12px] text-secondary">{formatRupiah(EXPENSES)}</Text>
+                <Text className="mt-0.5 font-jakarta-semibold text-[12px] text-secondary">{formatRupiah(totals.expenses)}</Text>
               </View>
             </View>
 
@@ -290,7 +245,7 @@ export default function HomeScreen() {
             <View className="flex-1 items-center">
               <Text className="font-jakarta-bold text-[10px] text-on-surface-variant">Spent Total</Text>
               <Text numberOfLines={1} className="mt-0.5 font-jakarta-bold text-[12px] text-primary">
-                {formatRupiah(EXPENSES)}
+                {formatRupiah(totals.expenses)}
               </Text>
             </View>
             <View className="flex-1 items-center">
@@ -305,13 +260,14 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Quick actions (non-functional for now) */}
+        {/* Quick actions (only Expense & Income is wired up for now) */}
         <View className="gap-2">
           <Text className="px-1 font-jakarta-semibold text-[18px] leading-6 text-on-surface">Quick Actions</Text>
           {QUICK_ACTIONS.map((action) => (
             <Pressable
               key={action.title}
               accessibilityRole="button"
+              onPress={action.href ? () => router.push(action.href) : undefined}
               className="flex-row items-center justify-between rounded-2xl bg-surface-container-lowest p-4 shadow-sm active:opacity-80"
             >
               <View className="min-w-0 flex-1 flex-row items-center gap-4">
@@ -348,54 +304,42 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          <View className="gap-2">
-            {ACTIVITIES.map((item) => {
-              const isIncome = item.type === 'income';
-              return (
-                <View key={item.id} className="flex-row items-center justify-between py-1">
-                  <View className="min-w-0 flex-1 flex-row items-center gap-2">
-                    <View
-                      className={`h-10 w-10 items-center justify-center rounded-full ${isIncome ? 'bg-green-100' : 'bg-red-100'}`}
-                    >
-                      <Icon
-                        name={isIncome ? 'arrow_upward' : 'arrow_downward'}
-                        size={20}
-                        color={isIncome ? '#16a34a' : '#dc2626'}
-                      />
-                    </View>
-                    <View className="min-w-0 flex-1">
-                      <Text numberOfLines={1} className="font-jakarta-semibold text-[14px] leading-5 text-on-surface">
-                        {item.title}
-                      </Text>
-                      <Text className="font-sans text-[12px] text-on-surface-variant">{item.meta}</Text>
-                    </View>
-                  </View>
-                  <View className="ml-2 items-end">
-                    <Text
-                      className={`font-jakarta-bold text-[14px] leading-5 ${isIncome ? 'text-secondary' : 'text-on-surface'}`}
-                    >
-                      {isIncome ? formatSignedRupiah(item.amount) : `-${formatRupiah(item.amount)}`}
-                    </Text>
-                    <Text
-                      className={`font-jakarta-semibold text-[10px] ${isIncome ? 'text-secondary' : 'text-on-surface-variant'}`}
-                    >
-                      {isIncome ? 'Income' : 'Expense'}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+          {recent.length > 0 ? (
+            <View className="gap-2">
+              {recent.map((item) => {
+                const day = formatShortDay(item.date);
+                const category = getCategory(item.categoryId)?.name;
+                return (
+                  <TransactionRow
+                    key={item.id}
+                    type={item.type}
+                    title={item.title}
+                    meta={category ? `${day} • ${category}` : day}
+                    amount={item.amount}
+                  />
+                );
+              })}
+            </View>
+          ) : isLoaded ? (
+            <View className="items-center gap-1 rounded-2xl bg-surface-container-low px-4 py-6">
+              <Icon name="receipt_long" size={28} color="#707974" />
+              <Text className="mt-1 font-jakarta-semibold text-[14px] text-on-surface">No activity yet</Text>
+              <Text className="text-center font-sans text-[12px] text-on-surface-variant">
+                Entries you add on the Expense & Income page will show up here.
+              </Text>
+            </View>
+          ) : null}
         </View>
       </ScrollView>
 
-      {/* Bottom navigation (non-functional for now) */}
+      {/* Bottom navigation (only Home and Transactions are wired up for now) */}
       <View className="h-16 flex-row items-center justify-around bg-surface px-2">
         {NAV_ITEMS.map((item) => (
           <Pressable
             key={item.label}
             accessibilityRole="button"
             accessibilityState={{ selected: item.active }}
+            onPress={item.href ? () => router.navigate(item.href) : undefined}
             className="min-h-[44px] min-w-[56px] items-center justify-center gap-0.5"
           >
             <Icon name={item.icon} size={24} color={item.active ? '#003527' : '#404944'} />
