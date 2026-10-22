@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
+import FriendlyLogo from '../components/FriendlyLogo';
 
 function EyeIcon({ color }: { color: string }) {
   return (
@@ -109,7 +110,8 @@ export default function LoginScreen() {
             end={{ x: 1, y: 1 }}
             style={{ borderRadius: 16, padding: 16, overflow: 'hidden' }}
           >
-            <View className="mb-4 flex-row items-center">
+            <View className="mb-4 flex-row items-center gap-2">
+              <FriendlyLogo size={28} />
               <Text className="font-jakarta-bold text-xs text-white/95">Friendly</Text>
             </View>
 
