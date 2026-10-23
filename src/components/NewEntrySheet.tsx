@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -13,27 +14,21 @@ import {
 import Icon from './Icon';
 import { useFinance } from '../context/FinanceContext';
 import { parseAmount } from '../utils/budget';
-import {
-  CUSTOM_CATEGORY_COLORS,
-  EntryType,
-  formatLongDate,
-  getDayLabel,
-  isDarkColor,
-  toDateKey,
-} from '../utils/entries';
+import { Entry, EntryType, formatLongDate, getDayLabel, parseDateKey, toDateKey } from '../utils/entries';
 
 type NewEntrySheetProps = {
   visible: boolean;
   onClose: () => void;
+  entry?: Entry | null; // set = edit mode
 };
 
 type FormErrors = { amount?: string; title?: string; category?: string };
 
 const MAX_TITLE = 60;
-const MAX_CATEGORY_NAME = 20;
 
-export default function NewEntrySheet({ visible, onClose }: NewEntrySheetProps) {
-  const { categories, addEntry, addCategory } = useFinance();
+export default function NewEntrySheet({ visible, onClose, entry = null }: NewEntrySheetProps) {
+  const { categories, addEntry, updateEntry, deleteEntry } = useFinance();
+  const isEditing = entry !== null;
 
   const [type, setType] = useState<EntryType>('expense');
   const [amountInput, setAmountInput] = useState('');
@@ -43,26 +38,17 @@ export default function NewEntrySheet({ visible, onClose }: NewEntrySheetProps) 
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const [customOpen, setCustomOpen] = useState(false);
-  const [customName, setCustomName] = useState('');
-  const [customColor, setCustomColor] = useState(CUSTOM_CATEGORY_COLORS[0].value);
-  const [customError, setCustomError] = useState('');
-
-  // Start every opening from a clean form, so a cancelled entry is discarded.
+  // Every opening starts fresh: blank for a new entry, the entry's values when editing.
   useEffect(() => {
     if (!visible) return;
-    setType('expense');
-    setAmountInput('');
-    setTitle('');
-    setDate(new Date());
+    setType(entry?.type ?? 'expense');
+    setAmountInput(entry ? String(entry.amount) : '');
+    setTitle(entry?.title ?? '');
+    setDate(entry ? parseDateKey(entry.date) : new Date());
     setShowPicker(false);
-    setCategoryId(null);
+    setCategoryId(entry?.categoryId ?? null);
     setErrors({});
-    setCustomOpen(false);
-    setCustomName('');
-    setCustomColor(CUSTOM_CATEGORY_COLORS[0].value);
-    setCustomError('');
-  }, [visible]);
+  }, [visible, entry]);
 
   const isExpense = type === 'expense';
   const selectedCategory = categories.find((c) => c.id === categoryId);
@@ -77,25 +63,7 @@ export default function NewEntrySheet({ visible, onClose }: NewEntrySheetProps) 
   function selectType(next: EntryType) {
     setType(next);
     clearError('category');
-    if (next === 'income') setCustomOpen(false);
-  }
-
-  function handleCreateCategory() {
-    const name = customName.trim();
-    if (name === '') {
-      setCustomError('Enter a category name.');
-      return;
-    }
-    if (categories.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
-      setCustomError('That category already exists.');
-      return;
-    }
-    const created = addCategory(name, customColor);
-    setCategoryId(created.id);
-    clearError('category');
-    setCustomOpen(false);
-    setCustomName('');
-    setCustomError('');
+    if (next === 'income') setCategoryId(null);
   }
 
   function handleSave() {
@@ -110,21 +78,38 @@ export default function NewEntrySheet({ visible, onClose }: NewEntrySheetProps) 
       return;
     }
 
-    addEntry({
+    const values = {
       type,
       amount,
       title: title.trim(),
       date: dateKey,
       categoryId: isExpense ? categoryId : null,
-    });
+    };
+    if (entry) updateEntry(entry.id, values);
+    else addEntry(values);
     onClose();
+  }
+
+  function handleDelete() {
+    if (!entry) return;
+    Alert.alert('Delete this entry?', 'This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          deleteEntry(entry.id);
+          onClose();
+        },
+      },
+    ]);
   }
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1 justify-end">
         <Pressable
-          accessibilityLabel="Close new entry"
+          accessibilityLabel={isEditing ? 'Close edit entry' : 'Close new entry'}
           onPress={onClose}
           className="absolute bottom-0 left-0 right-0 top-0 bg-inverse-surface/40"
         />
@@ -135,7 +120,9 @@ export default function NewEntrySheet({ visible, onClose }: NewEntrySheetProps) 
             <View className="items-center gap-2">
               <View className="h-1.5 w-12 rounded-full bg-slate-300" />
               <View className="w-full flex-row items-center justify-between pt-1">
-                <Text className="font-jakarta-semibold text-[18px] leading-6 text-primary">New Entry</Text>
+                <Text className="font-jakarta-semibold text-[18px] leading-6 text-primary">
+                  {isEditing ? 'Edit Entry' : 'New Entry'}
+                </Text>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Dismiss sheet"
@@ -280,14 +267,8 @@ export default function NewEntrySheet({ visible, onClose }: NewEntrySheetProps) 
               >
                 {categories.map((category, index) => {
                   const selected = isExpense && category.id === categoryId;
-                  const circleColor = category.isDefault ? (selected ? '#ffffff' : '#f8f9ff') : category.color;
-                  const iconColor = category.isDefault
-                    ? selected
-                      ? '#006c4a'
-                      : '#404944'
-                    : isDarkColor(category.color)
-                      ? '#ffffff'
-                      : '#0b1c30';
+                  const circleColor = selected ? '#ffffff' : '#f8f9ff';
+                  const iconColor = selected ? '#006c4a' : '#404944';
                   return (
                     <Pressable
                       key={category.id}
@@ -324,99 +305,44 @@ export default function NewEntrySheet({ visible, onClose }: NewEntrySheetProps) 
               ) : null}
             </View>
 
-            {/* Custom category */}
-            <View
-              className={`gap-2 rounded-2xl bg-surface-container-low p-3 ${isExpense ? '' : 'opacity-40'}`}
-              pointerEvents={isExpense ? 'auto' : 'none'}
-            >
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center gap-2">
-                  <Icon name="palette" size={20} color="#006c4a" />
-                  <Text className="font-jakarta-semibold text-[12px] text-on-surface">Custom Category</Text>
+            {/* Save (new entry) or Cancel / Save / Delete (edit) */}
+            {isEditing ? (
+              <View className="gap-3">
+                <View className="flex-row gap-3">
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={onClose}
+                    className="flex-1 items-center justify-center rounded-full bg-surface-container py-3.5"
+                  >
+                    <Text className="font-jakarta-semibold text-[15px] text-on-surface">Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={handleSave}
+                    className="flex-1 flex-row items-center justify-center gap-2 rounded-full bg-primary py-3.5 active:bg-primary-container"
+                  >
+                    <Icon name="check_circle" size={18} color="#ffffff" />
+                    <Text className="font-jakarta-semibold text-[15px] text-white">Save</Text>
+                  </Pressable>
                 </View>
                 <Pressable
                   accessibilityRole="button"
-                  disabled={!isExpense}
-                  onPress={() => {
-                    setCustomOpen((open) => !open);
-                    setCustomError('');
-                  }}
+                  onPress={handleDelete}
+                  className="items-center justify-center rounded-full bg-red-600 py-3.5 active:bg-red-700"
                 >
-                  <Text className="font-jakarta-bold text-[10px] text-secondary">
-                    {customOpen ? 'Cancel' : '+ Add Custom Category'}
-                  </Text>
+                  <Text className="font-jakarta-semibold text-[15px] text-white">Delete Entry</Text>
                 </Pressable>
               </View>
-
-              {customOpen ? (
-                <View className="gap-3 rounded-xl bg-surface-container-lowest p-3">
-                  <View>
-                    <View
-                      className={`flex-row items-center gap-2 rounded-xl bg-surface-container-low px-3 py-1.5 ${customError ? 'border border-error' : 'border border-transparent'}`}
-                    >
-                      <TextInput
-                        className="flex-1 p-0 font-sans text-[12px] text-on-surface"
-                        value={customName}
-                        onChangeText={(value) => {
-                          setCustomName(value);
-                          setCustomError('');
-                        }}
-                        placeholder="Category name (e.g. Gym, Pets)"
-                        placeholderTextColor="#707974"
-                        accessibilityLabel="Custom category name"
-                        maxLength={MAX_CATEGORY_NAME}
-                      />
-                      <Icon name="interests" size={18} color="#707974" />
-                    </View>
-                    {customError ? (
-                      <Text accessibilityRole="alert" className="mt-1 font-sans text-[12px] text-error">
-                        {customError}
-                      </Text>
-                    ) : null}
-                  </View>
-
-                  <View className="flex-row items-center justify-between px-1">
-                    <Text className="font-jakarta-semibold text-[11px] text-on-surface-variant">Badge Tone:</Text>
-                    <View className="flex-row items-center gap-2">
-                      {CUSTOM_CATEGORY_COLORS.map((tone) => {
-                        const selected = tone.value === customColor;
-                        return (
-                          <Pressable
-                            key={tone.value}
-                            accessibilityRole="button"
-                            accessibilityLabel={`${tone.name} badge tone`}
-                            accessibilityState={{ selected }}
-                            onPress={() => setCustomColor(tone.value)}
-                            className={`h-6 w-6 rounded-full ${selected ? 'border-2 border-primary' : 'border border-transparent'}`}
-                            style={{ backgroundColor: tone.value }}
-                          />
-                        );
-                      })}
-                    </View>
-                  </View>
-
-                  <View className="flex-row justify-end">
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={handleCreateCategory}
-                      className="rounded-full bg-secondary px-3 py-1"
-                    >
-                      <Text className="font-jakarta-bold text-[10px] text-white">Create Category</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ) : null}
-            </View>
-
-            {/* Save */}
-            <Pressable
-              accessibilityRole="button"
-              onPress={handleSave}
-              className="flex-row items-center justify-center gap-2 rounded-full bg-primary py-3.5 active:bg-primary-container"
-            >
-              <Icon name="check_circle" size={20} color="#ffffff" />
-              <Text className="font-jakarta-semibold text-[18px] text-white">Save Transaction</Text>
-            </Pressable>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleSave}
+                className="flex-row items-center justify-center gap-2 rounded-full bg-primary py-3.5 active:bg-primary-container"
+              >
+                <Icon name="check_circle" size={20} color="#ffffff" />
+                <Text className="font-jakarta-semibold text-[18px] text-white">Save Transaction</Text>
+              </Pressable>
+            )}
           </ScrollView>
         </View>
       </KeyboardAvoidingView>

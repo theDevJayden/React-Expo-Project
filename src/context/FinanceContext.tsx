@@ -2,27 +2,28 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Category,
-  CUSTOM_CATEGORY_ICON,
   createId,
   DEFAULT_CATEGORIES,
   Entry,
-  isStoredCategory,
   isStoredEntry,
+  OTHERS_CATEGORY_ID,
   sortNewestFirst,
-  StoredCategory,
 } from '../utils/entries';
 
 const ENTRIES_KEY = 'entries';
-const CATEGORIES_KEY = 'customCategories';
+// Custom categories were removed. This key is only read to delete old saved data.
+const LEGACY_CATEGORIES_KEY = 'customCategories';
+const KNOWN_CATEGORY_IDS = new Set(DEFAULT_CATEGORIES.map((c) => c.id));
 
 type NewEntry = Omit<Entry, 'id' | 'createdAt'>;
 
 type FinanceContextValue = {
   entries: Entry[]; // newest first
-  categories: Category[]; // defaults first, then custom
+  categories: Category[];
   isLoaded: boolean;
   addEntry: (entry: NewEntry) => void;
-  addCategory: (name: string, color: string) => Category;
+  updateEntry: (id: string, entry: NewEntry) => void;
+  deleteEntry: (id: string) => void;
   getCategory: (id: string | null) => Category | undefined;
 };
 
@@ -38,19 +39,25 @@ function readList<T>(raw: string | null, guard: (value: unknown) => value is T):
   }
 }
 
+// Income never has a category. Expenses that used a removed custom category become Others.
+function withKnownCategory(entry: Entry): Entry {
+  if (entry.type === 'income') return entry.categoryId === null ? entry : { ...entry, categoryId: null };
+  if (entry.categoryId !== null && KNOWN_CATEGORY_IDS.has(entry.categoryId)) return entry;
+  return { ...entry, categoryId: OTHERS_CATEGORY_ID };
+}
+
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [customCategories, setCustomCategories] = useState<StoredCategory[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load once. Saving waits for this so an empty first render never overwrites stored data.
   useEffect(() => {
     let active = true;
-    Promise.all([AsyncStorage.getItem(ENTRIES_KEY), AsyncStorage.getItem(CATEGORIES_KEY)])
-      .then(([rawEntries, rawCategories]) => {
+    AsyncStorage.removeItem(LEGACY_CATEGORIES_KEY).catch(() => undefined);
+    AsyncStorage.getItem(ENTRIES_KEY)
+      .then((rawEntries) => {
         if (!active) return;
-        setEntries(sortNewestFirst(readList(rawEntries, isStoredEntry)));
-        setCustomCategories(readList(rawCategories, isStoredCategory));
+        setEntries(sortNewestFirst(readList(rawEntries, isStoredEntry).map(withKnownCategory)));
       })
       .catch((error) => console.log('Could not load finance data:', error))
       .finally(() => {
@@ -68,40 +75,28 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     );
   }, [entries, isLoaded]);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    AsyncStorage.setItem(CATEGORIES_KEY, JSON.stringify(customCategories)).catch((error) =>
-      console.log('Could not save categories:', error),
-    );
-  }, [customCategories, isLoaded]);
-
   const addEntry = useCallback((entry: NewEntry) => {
     const created: Entry = { ...entry, id: createId('tx'), createdAt: new Date().toISOString() };
     setEntries((prev) => sortNewestFirst([created, ...prev]));
   }, []);
 
-  const addCategory = useCallback((name: string, color: string) => {
-    const stored: StoredCategory = { id: createId('cat'), name, color };
-    setCustomCategories((prev) => [...prev, stored]);
-    return { ...stored, icon: CUSTOM_CATEGORY_ICON, isDefault: false };
+  // Keeps id and createdAt, then re-sorts in case the date changed.
+  const updateEntry = useCallback((id: string, entry: NewEntry) => {
+    setEntries((prev) => sortNewestFirst(prev.map((e) => (e.id === id ? { ...e, ...entry } : e))));
   }, []);
 
-  const categories = useMemo<Category[]>(
-    () => [
-      ...DEFAULT_CATEGORIES,
-      ...customCategories.map((c) => ({ ...c, icon: CUSTOM_CATEGORY_ICON, isDefault: false })),
-    ],
-    [customCategories],
-  );
+  const deleteEntry = useCallback((id: string) => {
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+  }, []);
 
   const getCategory = useCallback(
-    (id: string | null) => (id === null ? undefined : categories.find((c) => c.id === id)),
-    [categories],
+    (id: string | null) => (id === null ? undefined : DEFAULT_CATEGORIES.find((c) => c.id === id)),
+    [],
   );
 
   const value = useMemo(
-    () => ({ entries, categories, isLoaded, addEntry, addCategory, getCategory }),
-    [entries, categories, isLoaded, addEntry, addCategory, getCategory],
+    () => ({ entries, categories: DEFAULT_CATEGORIES, isLoaded, addEntry, updateEntry, deleteEntry, getCategory }),
+    [entries, isLoaded, addEntry, updateEntry, deleteEntry, getCategory],
   );
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;

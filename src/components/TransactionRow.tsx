@@ -1,4 +1,4 @@
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import Icon from './Icon';
 import { formatRupiah } from '../utils/budget';
 import type { EntryType } from '../utils/entries';
@@ -8,11 +8,12 @@ type TransactionRowProps = {
   title: string;
   meta?: string;
   amount: number;
+  onEdit?: () => void;
 };
 
 // Shared by Home > Recent Activity and the Expense & Income list.
 // Income: green up arrow on light green. Expense: red down arrow on light red, red amount and label.
-export default function TransactionRow({ type, title, meta, amount }: TransactionRowProps) {
+export default function TransactionRow({ type, title, meta, amount, onEdit }: TransactionRowProps) {
   const isIncome = type === 'income';
   const tone = isIncome ? 'text-secondary' : 'text-red-600';
 
@@ -45,6 +46,17 @@ export default function TransactionRow({ type, title, meta, amount }: Transactio
         </Text>
         <Text className={`font-jakarta-semibold text-[10px] ${tone}`}>{isIncome ? 'Income' : 'Expense'}</Text>
       </View>
+      {onEdit ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Edit ${title}`}
+          onPress={onEdit}
+          hitSlop={8}
+          className="ml-2 h-8 w-8 items-center justify-center rounded-full bg-surface-container-low"
+        >
+          <Icon name="edit" size={16} color="#404944" />
+        </Pressable>
+      ) : null}
     </View>
   );
 }

@@ -17,30 +17,20 @@ export type Category = {
   name: string;
   color: string;
   icon: IconName;
-  isDefault: boolean;
 };
 
-// PRD default categories (names and colours from the PRD data model).
+export const OTHERS_CATEGORY_ID = 'cat-others';
+
+// PRD default categories (names and colours from the PRD data model), plus Others.
 export const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'cat-1', name: 'Housing Bills', color: '#3B82F6', icon: 'cottage', isDefault: true },
-  { id: 'cat-2', name: 'Medical', color: '#EF4444', icon: 'medical_services', isDefault: true },
-  { id: 'cat-3', name: 'Food & Beverages', color: '#10B981', icon: 'restaurant', isDefault: true },
-  { id: 'cat-4', name: 'Transport', color: '#F59E0B', icon: 'directions_car', isDefault: true },
-  { id: 'cat-5', name: 'Leisure', color: '#8B5CF6', icon: 'headphones', isDefault: true },
-  { id: 'cat-6', name: 'Shopping', color: '#EC4899', icon: 'shopping_bag', isDefault: true },
+  { id: 'cat-1', name: 'Housing Bills', color: '#3B82F6', icon: 'cottage' },
+  { id: 'cat-2', name: 'Medical', color: '#EF4444', icon: 'medical_services' },
+  { id: 'cat-3', name: 'Food & Beverages', color: '#10B981', icon: 'restaurant' },
+  { id: 'cat-4', name: 'Transport', color: '#F59E0B', icon: 'directions_car' },
+  { id: 'cat-5', name: 'Leisure', color: '#8B5CF6', icon: 'headphones' },
+  { id: 'cat-6', name: 'Shopping', color: '#EC4899', icon: 'shopping_bag' },
+  { id: OTHERS_CATEGORY_ID, name: 'Others', color: '#64748B', icon: 'question_mark' },
 ];
-
-// Badge tones from the reference design.
-export const CUSTOM_CATEGORY_COLORS = [
-  { name: 'Emerald', value: '#064e3b' },
-  { name: 'Teal', value: '#68dba9' },
-  { name: 'Mint', value: '#6ffbbe' },
-  { name: 'Rose', value: '#ffdad6' },
-  { name: 'Blue', value: '#d3e4fe' },
-  { name: 'Slate', value: '#bfc9c3' },
-];
-
-export const CUSTOM_CATEGORY_ICON: IconName = 'label';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -109,15 +99,6 @@ export function createId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// Picks a readable icon colour for a custom category's background.
-export function isDarkColor(hex: string): boolean {
-  const value = hex.replace('#', '');
-  const r = parseInt(value.slice(0, 2), 16);
-  const g = parseInt(value.slice(2, 4), 16);
-  const b = parseInt(value.slice(4, 6), 16);
-  return 0.299 * r + 0.587 * g + 0.114 * b < 140;
-}
-
 // Guards for data read back from AsyncStorage.
 export function isStoredEntry(value: unknown): value is Entry {
   const e = value as Entry;
@@ -135,15 +116,3 @@ export function isStoredEntry(value: unknown): value is Entry {
   );
 }
 
-export type StoredCategory = { id: string; name: string; color: string };
-
-export function isStoredCategory(value: unknown): value is StoredCategory {
-  const c = value as StoredCategory;
-  return (
-    typeof c === 'object' &&
-    c !== null &&
-    typeof c.id === 'string' &&
-    typeof c.name === 'string' &&
-    /^#[0-9a-fA-F]{6}$/.test(c.color)
-  );
-}

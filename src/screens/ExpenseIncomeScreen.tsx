@@ -40,6 +40,7 @@ export default function ExpenseIncomeScreen() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
 
   const totals = getMonthTotals(entries);
 
@@ -191,6 +192,10 @@ export default function ExpenseIncomeScreen() {
                 title={item.title}
                 meta={getCategory(item.categoryId)?.name}
                 amount={item.amount}
+                onEdit={() => {
+                  setEditingEntry(item);
+                  setSheetVisible(true);
+                }}
               />
             </View>
           )}
@@ -199,7 +204,10 @@ export default function ExpenseIncomeScreen() {
         <View className="absolute bottom-4 right-4">
           <Pressable
             accessibilityRole="button"
-            onPress={() => setSheetVisible(true)}
+            onPress={() => {
+              setEditingEntry(null);
+              setSheetVisible(true);
+            }}
             className="flex-row items-center gap-2 rounded-full bg-primary px-5 py-3.5 shadow-lg active:bg-primary-container"
           >
             <Icon name="add" size={22} color="#ffffff" />
@@ -226,7 +234,7 @@ export default function ExpenseIncomeScreen() {
         ))}
       </View>
 
-      <NewEntrySheet visible={sheetVisible} onClose={() => setSheetVisible(false)} />
+      <NewEntrySheet visible={sheetVisible} entry={editingEntry} onClose={() => setSheetVisible(false)} />
       <StatusBar style="dark" />
     </SafeAreaView>
   );
